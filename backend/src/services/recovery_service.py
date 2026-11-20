@@ -11,7 +11,9 @@ def get_recovery(db,ident):
 def create_recovery(db,data):
     case=db.get(CrashCase,data.crash_case_id)
     if case is None:raise HTTPException(404,'故障场景不存在')
-    if len(db.scalars(select(Recovery.id).where(Recovery.status.in_(['queued','running']))).all())>=20:raise HTTPException(429,'待处理配额20已满')
     logs=db.get(LogSet,case.log_set_id)
+    if logs is None:raise HTTPException(404,'日志集不存在')
+    if case.crash_after>len(logs.records):raise HTTPException(422,'断电点超过操作条数')
+    if len(db.scalars(select(Recovery.id).where(Recovery.status.in_(['queued','running']))).all())>=20:raise HTTPException(429,'待处理配额20已满')
     obj=Recovery(**data.model_dump(),status='queued',snapshot={'log_set':record(logs),'case':record(case)})
     db.add(obj);db.flush();return obj

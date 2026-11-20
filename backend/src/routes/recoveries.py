@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter,Depends
+from fastapi import APIRouter,Depends,HTTPException
 from fastapi.responses import Response
 from src.config.database import get_db
 from src.middlewares.auth import current_user,writable
@@ -12,7 +12,9 @@ router=APIRouter()
 def listing(db=Depends(get_db),user=Depends(current_user)):return list_recoveries(db)
 @router.post('/recoveries',status_code=202)
 def create(data:RecoveryInput,db=Depends(get_db),user=Depends(writable)):
-    obj=create_recovery(db,data);audit(db,user,f'recovery:enqueue:{obj.id}');db.commit();return record(obj)
+    try:obj=create_recovery(db,data)
+    except ValueError as exc:raise HTTPException(422,str(exc))
+    audit(db,user,f'recovery:enqueue:{obj.id}');db.commit();return record(obj)
 @router.get('/recoveries/{ident}')
 def detail(ident:int,db=Depends(get_db),user=Depends(current_user)):return record(get_recovery(db,ident))
 @router.get('/recoveries/{ident}/export')
